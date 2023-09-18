@@ -7,13 +7,13 @@ use std::{
 
 use selfprof::{active_app_name, idle_time, storage, time_now, Snap};
 
-mod main_cli;
+mod cli;
 
 type Name = String;
 type NameId = u32;
 
 fn main() {
-    let config = main_cli::parse();
+    let config = cli::parse();
 
     let interval_snap: u32 = u32::max(config.interval_snap, 1);
     let interval_save: u32 = u32::max(config.interval_save, 1);
