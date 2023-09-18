@@ -39,6 +39,9 @@ fn main() {
         for _ in 1..=snaps_per_save {
             thread::sleep(interval);
             let idle = idle_time();
+            if idle > config.idle_cutoff {
+                continue;
+            }
             let name = active_app_name();
 
             let name_id = match name_ids.get(&name) {

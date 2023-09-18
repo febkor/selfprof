@@ -6,7 +6,7 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(author = "febkor", version = "1", about, long_about = None)]
 pub struct Config {
-    /// Directory to store snaps.
+    /// Directory where to store snaps.
     #[arg(short, long, default_value = "~/selfprof")]
     pub out_dir: String,
 
@@ -17,6 +17,10 @@ pub struct Config {
     /// Seconds between each save.
     #[arg(long, default_value_t = 60)]
     pub interval_save: u32,
+
+    /// Seconds of idling after which profiling pauses.
+    #[arg(long, default_value_t = 60*60*2)]
+    pub idle_cutoff: u16,
 
     /// Print debug info.
     #[arg(short, long, default_value_t = false)]
