@@ -1,31 +1,27 @@
 use std::{
-    collections::HashMap,
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Read, Write},
+    io::{BufReader, BufWriter, Read, Write},
     path::Path,
 };
 
-pub fn load_map(path: &Path) -> HashMap<String, u32> {
+use crate::Snap;
+
+pub fn load_snaps(path: &Path) -> Vec<Snap> {
     let mut buf = Vec::<u8>::new();
     read_file_to_buf(path, &mut buf);
 
-    let mut map: HashMap<String, u32> = HashMap::new();
-    for (i, line) in buf.lines().enumerate() {
-        map.insert(line.unwrap_or_default(), i.try_into().expect("Too big"));
+    let mut res: Vec<Snap> = Vec::new();
+    let mut i = 0;
+    while i < buf.len() {
+        let snap = Snap::from_bytes(&buf[i..]);
+        i += snap.count_bytes();
+        res.push(snap);
     }
-    map
+
+    res
 }
 
-pub fn update_names<T>(vec: &Vec<T>, path: &Path, func: fn(&T) -> &str) {
-    let mut w = file_open_append(path);
-
-    for entry in vec {
-        let encoded = func(entry);
-        writeln!(w, "{}", encoded).expect("wrote all names");
-    }
-}
-
-pub fn update_snaps<T, const N: usize>(vec: &Vec<T>, path: &Path, func: fn(&T) -> [u8; N]) {
+pub fn update_snaps<T>(vec: &Vec<T>, path: &Path, func: fn(&T) -> Vec<u8>) {
     let mut w = file_open_append(path);
 
     for entry in vec {

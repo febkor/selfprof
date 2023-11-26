@@ -1,5 +1,7 @@
 use std::{
-    collections::HashMap,
+    collections::VecDeque,
+    ffi::CString,
+    mem::size_of,
     path::Path,
     thread,
     time::{self},
@@ -29,11 +31,11 @@ fn main() {
     let dir_path = &Path::new(&config.out_dir);
     std::fs::create_dir_all(dir_path).expect("create output directory");
     let snaps_path = dir_path.join("selfprof.dat");
-    let names_path = dir_path.join("selfprof.txt");
+    let snaps = storage::load_snaps(&snaps_path);
 
     let mut snaps: Vec<Snap> = Vec::with_capacity(snaps_per_save);
-    let mut names: Vec<Name> = Vec::with_capacity(snaps_per_save);
-    let mut name_ids: HashMap<Name, NameId> = storage::load_map(&names_path);
+    const MAX_NAME_LOOKBACK: usize = size_of::<u8>();
+    let mut names: VecDeque<Name> = VecDeque::with_capacity(MAX_NAME_LOOKBACK);
 
     loop {
         for _ in 1..=snaps_per_save {
@@ -44,25 +46,18 @@ fn main() {
             }
             let name = active_app_name();
 
-            let name_id = match name_ids.get(&name) {
-                Some(id) => *id,
-                None => {
-                    names.push(name.clone());
-                    let id = name_ids.len().try_into().unwrap_or(std::u32::MAX);
-                    name_ids.insert(name.clone(), id);
-                    id
-                }
-            };
+            // TODO: find rindex (reverse!)
+            let index = names.iter().position(|x| x == &name).unwrap_or(0);
 
             let snap = Snap {
                 time: time_now(),
-                name: name_id,
-                idle,
-                pad: 0,
+                idle: idle,
+                index: index.try_into().unwrap_or(0),
+                // TODO: only write if index == 0
+                name: CString::new(name).expect("No nul"),
             };
 
             if config.verbose {
-                println!("{:?}", &name);
                 println!("{:?}", &snap);
             }
 
@@ -73,7 +68,6 @@ fn main() {
             println!("{:?}", "saving...");
         }
 
-        storage::update_names(&names, &names_path, |s| s);
         storage::update_snaps(&snaps, &snaps_path, |s| s.to_bytes());
 
         names.clear();
