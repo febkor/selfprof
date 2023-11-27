@@ -1,12 +1,11 @@
 use std::{
-    collections::VecDeque,
     ffi::CString,
     path::Path,
     thread,
     time::{self},
 };
 
-use selfprof::{active_app_name, idle_time, storage, time_now, Snap};
+use selfprof::{active_app_name, idle_time, storage, time_now, RingBuf, Snap};
 
 mod cli;
 
@@ -32,7 +31,7 @@ fn main() {
 
     const MAX_NAME_LOOKBACK: usize = u8::MAX as usize;
     let mut snaps: Vec<Snap> = Vec::with_capacity(snaps_per_save);
-    let mut names: VecDeque<Name> = VecDeque::with_capacity(MAX_NAME_LOOKBACK);
+    let mut names: RingBuf<Name> = RingBuf::with_capacity(MAX_NAME_LOOKBACK);
 
     {
         // Load snaps to initialize names
@@ -42,10 +41,7 @@ fn main() {
                 println!("Loaded {:?}", snap);
             }
 
-            if names.len() == MAX_NAME_LOOKBACK {
-                names.pop_front();
-            }
-            names.push_back(snap.name);
+            names.push(snap.name);
         }
     }
 
@@ -83,10 +79,7 @@ fn main() {
             }
 
             if !name_exists {
-                if names.len() == MAX_NAME_LOOKBACK {
-                    names.pop_front();
-                }
-                names.push_back(CString::new(name.clone()).expect("No nul"));
+                names.push(CString::new(name.clone()).expect("No nul"));
             }
 
             snaps.push(snap);

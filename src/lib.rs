@@ -1,5 +1,7 @@
 use std::{
+    collections::VecDeque,
     ffi::{CStr, CString},
+    ops::Deref,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -47,6 +49,36 @@ impl Snap {
             index,
             name,
         }
+    }
+}
+
+pub struct RingBuf<T> {
+    capacity: usize,
+    buf: VecDeque<T>,
+}
+
+impl<T> RingBuf<T> {
+    pub fn with_capacity(capacity: usize) -> RingBuf<T> {
+        RingBuf {
+            capacity,
+            buf: VecDeque::with_capacity(capacity),
+        }
+    }
+
+    pub fn push(&mut self, value: T) {
+        if self.buf.len() == self.capacity {
+            self.buf.pop_front();
+        }
+
+        self.buf.push_back(value);
+    }
+}
+
+impl<T> Deref for RingBuf<T> {
+    type Target = VecDeque<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.buf
     }
 }
 
