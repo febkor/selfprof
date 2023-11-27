@@ -53,11 +53,11 @@ fn main() {
                 continue;
             }
             let time = time_now();
-            let name = active_app_name();
+            let name = CString::new(active_app_name()).expect("No nul");
             let index: u8 = names
                 .iter()
                 .rev()
-                .position(|x| x.as_bytes() == name.as_bytes())
+                .position(|x| x == &name)
                 .unwrap_or(MAX_NAME_LOOKBACK)
                 .try_into()
                 .unwrap_or(MAX_NAME_LOOKBACK as u8);
@@ -70,7 +70,7 @@ fn main() {
                 name: if name_exists {
                     CString::default()
                 } else {
-                    CString::new(name.clone()).expect("No nul")
+                    name.clone()
                 },
             };
 
@@ -79,7 +79,7 @@ fn main() {
             }
 
             if !name_exists {
-                names.push(CString::new(name.clone()).expect("No nul"));
+                names.push(name);
             }
 
             snaps.push(snap);
