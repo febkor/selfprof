@@ -97,7 +97,7 @@ pub fn idle_time() -> u16 {
 
 pub fn active_app_name() -> String {
     match get_active_window() {
-        Ok(w) => format!("{} : {}", w.process_name, w.title),
+        Ok(w) => format!("{} : {}", w.app_name, w.title),
         Err(_) => "".to_string(),
     }
 }
