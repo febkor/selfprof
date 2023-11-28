@@ -1,16 +1,15 @@
 use std::{
-    collections::HashMap,
+    ffi::CString,
     path::Path,
     thread,
     time::{self},
 };
 
-use selfprof::{active_app_name, idle_time, storage, time_now, Snap};
+use selfprof::{active_app_name, idle_time, storage, time_now, RingBuf, Snap};
 
 mod cli;
 
-type Name = String;
-type NameId = u32;
+type Name = CString;
 
 fn main() {
     let config = cli::parse();
@@ -29,41 +28,47 @@ fn main() {
     let dir_path = &Path::new(&config.out_dir);
     std::fs::create_dir_all(dir_path).expect("create output directory");
     let snaps_path = dir_path.join("selfprof.dat");
-    let names_path = dir_path.join("selfprof.txt");
 
+    const MAX_NAME_LOOKBACK: usize = u8::MAX as usize;
     let mut snaps: Vec<Snap> = Vec::with_capacity(snaps_per_save);
-    let mut names: Vec<Name> = Vec::with_capacity(snaps_per_save);
-    let mut name_ids: HashMap<Name, NameId> = storage::load_map(&names_path);
+    let mut names: RingBuf<Name> = RingBuf::with_capacity(MAX_NAME_LOOKBACK);
 
     loop {
-        for _ in 1..=snaps_per_save {
+        for _ in 0..snaps_per_save {
             thread::sleep(interval);
+
             let idle = idle_time();
             if idle > config.idle_cutoff {
                 continue;
             }
-            let name = active_app_name();
-
-            let name_id = match name_ids.get(&name) {
-                Some(id) => *id,
-                None => {
-                    names.push(name.clone());
-                    let id = name_ids.len().try_into().unwrap_or(std::u32::MAX);
-                    name_ids.insert(name.clone(), id);
-                    id
-                }
-            };
+            let time = time_now();
+            let name = CString::new(active_app_name()).expect("No nul");
+            let index: u8 = names
+                .iter()
+                .rev()
+                .position(|x| x == &name)
+                .unwrap_or(MAX_NAME_LOOKBACK)
+                .try_into()
+                .unwrap_or(MAX_NAME_LOOKBACK as u8);
+            let name_exists = index < MAX_NAME_LOOKBACK as u8;
 
             let snap = Snap {
-                time: time_now(),
-                name: name_id,
+                time,
                 idle,
-                pad: 0,
+                index,
+                name: if name_exists {
+                    CString::default()
+                } else {
+                    name.clone()
+                },
             };
 
             if config.verbose {
-                println!("{:?}", &name);
                 println!("{:?}", &snap);
+            }
+
+            if !name_exists {
+                names.push(name);
             }
 
             snaps.push(snap);
@@ -73,10 +78,7 @@ fn main() {
             println!("{:?}", "saving...");
         }
 
-        storage::update_names(&names, &names_path, |s| s);
         storage::update_snaps(&snaps, &snaps_path, |s| s.to_bytes());
-
-        names.clear();
         snaps.clear();
     }
 }

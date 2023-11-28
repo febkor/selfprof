@@ -7,7 +7,7 @@ use clap::Parser;
 #[command(author = "febkor", version = "1", about, long_about = None)]
 pub struct Config {
     /// Directory where to store snaps.
-    #[arg(short, long, default_value = "~/selfprof")]
+    #[arg(short, long)]
     pub out_dir: String,
 
     /// Seconds between each snap.
