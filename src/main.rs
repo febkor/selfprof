@@ -33,21 +33,10 @@ fn main() {
     let mut snaps: Vec<Snap> = Vec::with_capacity(snaps_per_save);
     let mut names: RingBuf<Name> = RingBuf::with_capacity(MAX_NAME_LOOKBACK);
 
-    {
-        // Load snaps to initialize names
-        let snaps_prev = storage::load_snaps(&snaps_path);
-        for snap in snaps_prev {
-            if config.verbose {
-                println!("Loaded {:?}", snap);
-            }
-
-            names.push(snap.name);
-        }
-    }
-
     loop {
         for _ in 0..snaps_per_save {
             thread::sleep(interval);
+
             let idle = idle_time();
             if idle > config.idle_cutoff {
                 continue;
@@ -90,7 +79,6 @@ fn main() {
         }
 
         storage::update_snaps(&snaps, &snaps_path, |s| s.to_bytes());
-
         snaps.clear();
     }
 }
